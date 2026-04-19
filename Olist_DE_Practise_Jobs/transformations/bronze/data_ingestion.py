@@ -12,7 +12,8 @@ from pyspark.sql.functions import * # This imports current_timestamp()
 
 # Bronze layer
 spark.sql("USE SCHEMA bronze")
-CONFIG_PATH = "/Workspace/Users/jagadeeswararao.d@thoughtworks.com/data-sentinels/Olist_DE_Practise_Jobs/utilities/ingestion_config.json"
+current_user = spark.sql("SELECT current_user()").first()[0]
+CONFIG_PATH = f"/Workspace/Users/{current_user}/data-sentinels/Olist_DE_Practise_Jobs/utilities/ingestion_config.json"
 
 try:
     with open(CONFIG_PATH, "r") as f:
@@ -32,6 +33,9 @@ for file_name, config in files_to_load.items():
         table_name = current_config["table_name"]
         table_schema = current_config.get("schema")
         dq_rules = current_config.get("dq_rules", {})
+        file_format = current_config.get("file_format")
+        has_header = current_config.get("header")
+        file_delimiter = current_config.get("delimiter")
         
         @dlt.table(
             name=table_name,
@@ -45,8 +49,9 @@ for file_name, config in files_to_load.items():
             # Read the CSV and append the ingestion timestamp
             df = (
                 spark.read
-                .format("csv")
-                .option("header", "true")
+                .format(file_format)
+                .option("header", has_header)
+                .option("delimiter", file_delimiter)
                 .schema(table_schema) 
                 .load(full_path)
                 .withColumn("ingestion_ts", current_timestamp()) # <--- Adds the timestamp column

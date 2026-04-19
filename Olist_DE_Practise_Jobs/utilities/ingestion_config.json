@@ -7,11 +7,19 @@
             "dq_rules": {
                 "valid_customer_id": "customer_id IS NOT NULL",
                 "valid_zip_code": "customer_zip_code_prefix > 0"
-            }
+            },
+             "file_format": "csv",
+              "header": True,
+              "delimiter": ",",
+              "load_mode": "overwrite"
         },
         "product_category_name_translation.csv": {
             "table_name": "raw_product_names_translation",
-            "schema": "product_category_name STRING, product_category_name_english STRING"
+            "schema": "product_category_name STRING, product_category_name_english STRING",
+             "file_format": "csv",
+              "header": True,
+              "delimiter": ",",
+              "load_mode": "overwrite"
         },
         "olist_sellers_dataset.csv":{
           "table_name":"raw_olist_sellers",
@@ -19,7 +27,11 @@
           "dq_rules":{
             "valid_seller_id": "seller_id is not null"
 
-          }
+          },
+           "file_format": "csv",
+              "header": True,
+              "delimiter": ",",
+              "load_mode": "overwrite"
         },
         "olist_products_dataset.csv":{
           "table_name":"raw_products",
@@ -27,7 +39,11 @@
           "dq_rules":{
             "valid_product_id": "product_id is not null"
             
-          }
+          },
+           "file_format": "csv",
+              "header": True,
+              "delimiter": ",",
+              "load_mode": "overwrite"
         },
         "olist_orders_dataset.csv":{
           "table_name":"raw_orders",
@@ -36,14 +52,22 @@
           "dq_rules":{
             "valid_order_id": "order_id is not null"
             
-          }
+          },
+           "file_format": "csv",
+              "header": True,
+              "delimiter": ",",
+              "load_mode": "overwrite"
         },
         "olist_order_payments_dataset.csv":{
           "table_name":"raw_order_payments",
           "schema":"order_id string, payment_sequential integer,payment_type string,payment_installments integer,payment_value double",
           "dq_rules":{
             "valid_order_id":"order_id is not null"
-          }
+          },
+           "file_format": "csv",
+              "header": True,
+              "delimiter": ",",
+              "load_mode": "overwrite"
         },
         "olist_order_items_dataset.csv":{
           "table_name":"raw_order_items",
@@ -52,11 +76,19 @@
           "dq_rules":{
             "valid_order_id":"order_id is not null"
             
-          }
+          },
+           "file_format": "csv",
+              "header": True,
+              "delimiter": ",",
+              "load_mode": "overwrite"
         },
         "olist_geolocation_dataset.csv":{
           "table_name":"raw_geolocation",
-          "schema":"geolocation_zip_code_prefix string, geolocation_lat string, geolocation_lng string, geolocation_city string, geolocation_state string"
+          "schema":"geolocation_zip_code_prefix string, geolocation_lat string, geolocation_lng string, geolocation_city string, geolocation_state string",
+           "file_format": "csv",
+              "header": True,
+              "delimiter": ",",
+              "load_mode": "overwrite"
         },
         "olist_order_reviews_dataset.csv":{
           "table_name":"raw_order_reviews",
@@ -65,7 +97,11 @@
           "dq_rules":{
             "valid_review_id":"review_id is not null"
             
-          }
+          },
+           "file_format": "csv",
+              "header": True,
+              "delimiter": ",",
+              "load_mode": "overwrite"
         }
 
     }
