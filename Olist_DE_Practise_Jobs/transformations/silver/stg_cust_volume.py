@@ -16,8 +16,8 @@ def stg_cust_vol_agg():
     df_cust_vol = df_custs.groupBy("customer_unique_id").agg(count("order_id").alias("order_volume"))
     df_segmented = df_cust_vol.withColumn(
     "volume_segment",
-    when(col("order_volume") >= 8, "High")
-    .when((col("order_volume") >= 4) & (col("order_volume") <= 7), "Medium")
+    when(col("order_volume") >= 7, "High")
+    .when((col("order_volume") >= 2) & (col("order_volume") <= 6), "Medium")
     .otherwise("Low")
     )
 
