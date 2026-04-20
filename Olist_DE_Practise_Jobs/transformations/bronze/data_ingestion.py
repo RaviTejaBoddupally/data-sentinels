@@ -8,18 +8,31 @@ In addition to the existing columns this transformation will add ingestion_ts as
 """
 import dlt
 import json
-from pyspark.sql.functions import * # This imports current_timestamp()
+from pyspark.sql.functions import * 
+import logging
+import os
+# Set up logging configuration
+logger = logging.getLogger("DLTLogger")
+logger.setLevel(logging.INFO)
 
 # Bronze layer
 spark.sql("USE SCHEMA bronze")
-#current_user = spark.sql("SELECT current_user()").first()[0]
-CONFIG_PATH = f"/Workspace/Users/jagadeeswararao.d@thoughtworks.com/data-sentinels/Olist_DE_Practise_Jobs/utilities/ingestion_config.json"
+
+# current_user = spark.sql("SELECT current_user()").first()[0]
+# user_name = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get()
+# user_name = "Olist_DE_Practise_Jobs/utilities/ingestion_config.json"
+# logger.info("Current user value is ."+user_name)
+# CONFIG_PATH = f"/Workspace/Users/{user_name}/data-sentinels/Olist_DE_Practise_Jobs/utilities/ingestion_config.json"
+
+current_script_path = os.getcwd()
+repo_root = current_script_path.split("Olist_DE_Practise_Jobs")[0] + "Olist_DE_Practise_Jobs"
+CONFIG_PATH = os.path.join(repo_root, "utilities", "ingestion_config.json")
 
 try:
     with open(CONFIG_PATH, "r") as f:
         pipeline_config = json.load(f)
 except Exception as e:
-    print(f"Error loading config file: {e}")
+    logger.info(f"Error loading config file: {e}")
     
 
 
