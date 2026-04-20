@@ -12,8 +12,8 @@ from pyspark.sql.functions import * # This imports current_timestamp()
 
 # Bronze layer
 spark.sql("USE SCHEMA bronze")
-current_user = spark.sql("SELECT current_user()").first()[0]
-CONFIG_PATH = f"/Workspace/Users/{current_user}/data-sentinels/Olist_DE_Practise_Jobs/utilities/ingestion_config.json"
+#current_user = spark.sql("SELECT current_user()").first()[0]
+CONFIG_PATH = f"/Workspace/Users/jagadeeswararao.d@thoughtworks.com/data-sentinels/Olist_DE_Practise_Jobs/utilities/ingestion_config.json"
 
 try:
     with open(CONFIG_PATH, "r") as f:

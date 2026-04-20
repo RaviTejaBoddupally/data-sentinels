@@ -9,7 +9,7 @@
                 "valid_zip_code": "customer_zip_code_prefix > 0"
             },
              "file_format": "csv",
-              "header": True,
+              "header": true,
               "delimiter": ",",
               "load_mode": "overwrite"
         },
@@ -17,7 +17,7 @@
             "table_name": "raw_product_names_translation",
             "schema": "product_category_name STRING, product_category_name_english STRING",
              "file_format": "csv",
-              "header": True,
+              "header": true,
               "delimiter": ",",
               "load_mode": "overwrite"
         },
@@ -29,7 +29,7 @@
 
           },
            "file_format": "csv",
-              "header": True,
+              "header": true,
               "delimiter": ",",
               "load_mode": "overwrite"
         },
@@ -41,7 +41,7 @@
             
           },
            "file_format": "csv",
-              "header": True,
+              "header": true,
               "delimiter": ",",
               "load_mode": "overwrite"
         },
@@ -54,7 +54,7 @@
             
           },
            "file_format": "csv",
-              "header": True,
+              "header": true,
               "delimiter": ",",
               "load_mode": "overwrite"
         },
@@ -65,7 +65,7 @@
             "valid_order_id":"order_id is not null"
           },
            "file_format": "csv",
-              "header": True,
+              "header": true,
               "delimiter": ",",
               "load_mode": "overwrite"
         },
@@ -78,7 +78,7 @@
             
           },
            "file_format": "csv",
-              "header": True,
+              "header": true,
               "delimiter": ",",
               "load_mode": "overwrite"
         },
@@ -86,7 +86,7 @@
           "table_name":"raw_geolocation",
           "schema":"geolocation_zip_code_prefix string, geolocation_lat string, geolocation_lng string, geolocation_city string, geolocation_state string",
            "file_format": "csv",
-              "header": True,
+              "header": true,
               "delimiter": ",",
               "load_mode": "overwrite"
         },
@@ -99,7 +99,7 @@
             
           },
            "file_format": "csv",
-              "header": True,
+              "header": true,
               "delimiter": ",",
               "load_mode": "overwrite"
         }
