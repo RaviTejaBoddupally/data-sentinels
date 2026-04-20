@@ -14,7 +14,7 @@ spark.sql("USE SCHEMA gold")
 #   Default catalog = data_sentinals
 #   Default schema  = gold
 # -------------------------------------------------------------------
-SILVER_DELIVERY_ORDER_TABLE = "data_sentinals.silver.delivery_order_silverr"
+SILVER_DELIVERY_ORDER_TABLE = "data_sentinals.silver.delivery_order_silver"
 SILVER_DELIVERY_ORDER_ITEM_TABLE = "data_sentinals.silver.delivery_order_item_silver"
 
 
