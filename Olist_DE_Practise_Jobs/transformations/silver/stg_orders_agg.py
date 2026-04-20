@@ -10,6 +10,10 @@ spark.sql("USE SCHEMA silver")
     name="stg_orders_agg",
     comment = "Table with total order value instead of the individual order values"
 )
+@dlt.expect_or_fail(
+    "valid_order", 
+    "order_id is not null"
+)
 def stg_orders_agg():
     df_orders_items = dlt.read("data_sentinals.bronze.raw_order_items")
 

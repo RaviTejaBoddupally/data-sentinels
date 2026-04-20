@@ -34,6 +34,10 @@ spark.sql("USE SCHEMA silver")
     name = "stg_last_12months_orders",
     comment = "Calculating latest order date from order_purchase_timestamp"
 )
+@dlt.expect_or_fail(
+    "valid_order_date", 
+    "order_purchase_timestamp is not null"
+)
 def last_12months_orders():
     # Read both upstream views
     df_orders = dlt.read("data_sentinals.bronze.raw_orders")

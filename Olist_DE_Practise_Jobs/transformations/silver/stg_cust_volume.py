@@ -11,6 +11,10 @@ spark.sql("USE SCHEMA silver")
     name="stg_cust_vol_agg",
     comment = "Contains the order volume at unique customer id"
 )
+@dlt.expect_or_fail(
+    "valid_customer", 
+    "customer_unique_id is not null"
+)
 def stg_cust_vol_agg():
     df_custs = dlt.read("data_sentinals.silver.stg_last_12months_orders")
     df_cust_vol = df_custs.groupBy("customer_unique_id").agg(count("order_id").alias("order_volume"))

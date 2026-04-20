@@ -9,6 +9,10 @@ spark.sql("USE SCHEMA gold")
     name = "customer_segmentation",
     comment = "Final view of customer segmentation based on pre-defined rules"
 )
+@dlt.expect_or_fail(
+    "valid_persona", 
+    "customer_persona IN ('VIP', 'Core Customer', 'Casual Buyer')"
+)
 def customer_segmenation():
     df_stg_vol = dlt.read("data_sentinals.silver.stg_cust_vol_agg")
     df_stg_price = dlt.read("data_sentinals.silver.stg_cust_percentile")
