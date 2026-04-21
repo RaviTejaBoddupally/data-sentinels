@@ -41,6 +41,6 @@ BRONZE_TRANSLATION_TABLE = "data_sentinals.bronze.raw_product_names_translation"
 @dlt.expect_or_drop("product_id_not_null", "product_id IS NOT NULL")
 @dlt.expect("category_not_null", "product_category_en IS NOT NULL")
 def product_catalog_silver():
-    products = spark.read.table(BRONZE_PRODUCTS_TABLE)
-    translation = spark.read.table(BRONZE_TRANSLATION_TABLE)
+    products = dlt.read(BRONZE_PRODUCTS_TABLE)
+    translation = dlt.read(BRONZE_TRANSLATION_TABLE)
     return build_product_catalog(products, translation)

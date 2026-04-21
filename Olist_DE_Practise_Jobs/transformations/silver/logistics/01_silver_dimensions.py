@@ -30,7 +30,7 @@ BRONZE_SELLERS_TABLE = "data_sentinals.bronze.raw_olist_sellers"
 @dlt.expect("valid_state", "length(geo_state) = 2")
 def geo_zip_prefix_silver():
 
-    geo = spark.read.table(BRONZE_GEO_TABLE)
+    geo = dlt.read(BRONZE_GEO_TABLE)
 
     geo_std = (
         geo.select(
@@ -67,7 +67,7 @@ def geo_zip_prefix_silver():
 @dlt.expect_or_drop("customer_id_not_null", "customer_id IS NOT NULL")
 def customer_geo_silver():
 
-    customers = spark.read.table(BRONZE_CUSTOMERS_TABLE)
+    customers = dlt.read(BRONZE_CUSTOMERS_TABLE)
     geo = dlt.read("geo_zip_prefix_silver")
 
     customers_std = (
@@ -108,7 +108,7 @@ def customer_geo_silver():
 @dlt.expect_or_drop("seller_id_not_null", "seller_id IS NOT NULL")
 def seller_geo_silver():
 
-    sellers = spark.read.table(BRONZE_SELLERS_TABLE)
+    sellers = dlt.read(BRONZE_SELLERS_TABLE)
     geo = dlt.read("geo_zip_prefix_silver")
 
     sellers_std = (

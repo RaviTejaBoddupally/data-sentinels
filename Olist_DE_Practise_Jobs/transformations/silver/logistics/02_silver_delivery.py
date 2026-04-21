@@ -41,7 +41,7 @@ SELLER_GEO_TABLE = "seller_geo_silver"
 """)
 def delivery_order_silver():
 
-    orders = spark.read.table(BRONZE_ORDERS_TABLE)
+    orders = dlt.read(BRONZE_ORDERS_TABLE)
     customers = dlt.read(CUSTOMER_GEO_TABLE)
 
     orders_std = (

@@ -62,7 +62,7 @@ CUSTOMER_GEO_TABLE = "customer_geo_silver"
     """,
 )
 def orders_revenue_silver():
-    orders = spark.read.table(BRONZE_ORDERS_TABLE)
+    orders = dlt.read(BRONZE_ORDERS_TABLE)
     items_revenue = dlt.read("order_items_revenue_silver")
     payments_agg = dlt.read("payments_order_agg_silver")
     customer_geo = dlt.read(CUSTOMER_GEO_TABLE)

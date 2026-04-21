@@ -41,6 +41,6 @@ BRONZE_ORDER_ITEMS_TABLE = "data_sentinals.bronze.raw_order_items"
 @dlt.expect_or_drop("freight_non_negative", "freight_value >= 0")
 @dlt.expect("category_populated", "product_category_en IS NOT NULL")
 def order_items_revenue_silver():
-    items = spark.read.table(BRONZE_ORDER_ITEMS_TABLE)
+    items = dlt.read(BRONZE_ORDER_ITEMS_TABLE)
     catalog = dlt.read("product_catalog_silver")
     return build_order_items_revenue(items, catalog)

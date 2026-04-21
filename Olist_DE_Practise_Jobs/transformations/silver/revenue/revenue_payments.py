@@ -59,7 +59,7 @@ BRONZE_ORDER_PAYMENTS_TABLE = "data_sentinals.bronze.raw_order_payments"
 )
 @dlt.expect("installments_non_negative", "payment_installments >= 0")
 def payments_clean_silver():
-    raw = spark.read.table(BRONZE_ORDER_PAYMENTS_TABLE)
+    raw = dlt.read(BRONZE_ORDER_PAYMENTS_TABLE)
     return clean_payments(raw)
 
 

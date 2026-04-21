@@ -49,7 +49,6 @@ def aggregate_payments_per_order(payments_clean: DataFrame) -> DataFrame:
     """Collapse the 1-to-many `raw_order_payments` rows into one row per
     `order_id`. Derives `primary_payment_type` as the payment type
     contributing the largest single value for the order."""
-    # primary_payment_type via window: pick the payment row with max value per order
     window_by_value = (
         Window.partitionBy("order_id").orderBy(F.desc("payment_value"))
     )
@@ -167,12 +166,7 @@ def build_orders_revenue(
     payments_agg: DataFrame,
     customer_geo: DataFrame,
 ) -> DataFrame:
-    """Build the order-grain revenue fact.
-
-    The join orders ↔ items is an INNER join on purpose: payments referencing
-    a non-existent order (a "ghost" payment) cannot reach the Gold layer,
-    which is one of the spec's required data-quality guarantees.
-    """
+    """Build the order-grain revenue fact."""
     orders = raw_orders.select(
         F.col("order_id").cast("string").alias("order_id"),
         F.col("customer_id").cast("string").alias("customer_id"),
@@ -205,10 +199,6 @@ def build_orders_revenue(
 
     return (
         base.withColumn("order_purchase_date", F.to_date("order_purchase_ts"))
-        # Month grain is modelled as a DATE (first of the month) so that
-        # downstream joins on `order_purchase_month` are type-stable and
-        # do not depend on session/JVM timezone interpretation of a
-        # timestamp→date cast.
         .withColumn(
             "order_purchase_month",
             F.trunc(F.col("order_purchase_date"), "MM"),
@@ -229,13 +219,7 @@ def build_orders_revenue(
 
 
 def build_gold_revenue_monthly(orders_revenue: DataFrame) -> DataFrame:
-    """Monthly GMV with MoM / YoY and rolling windows (3m, 6m).
-
-    MoM and YoY are computed via **month-based self-joins** (using
-    `add_months`) rather than `lag(n)`. A lag-by-rows implementation
-    would silently return NULL whenever a calendar month has no orders,
-    which would make the KPIs wrong for any gap in the timeline.
-    """
+    """Monthly GMV with MoM / YoY and rolling windows (3m, 6m)."""
     base = (
         orders_revenue.filter(F.col("is_revenue_recognised") == 1)
         .filter(F.col("order_purchase_month").isNotNull())
@@ -397,90 +381,75 @@ def build_gold_revenue_exec_summary(
     revenue_by_state_month: DataFrame,
     revenue_by_payment_type_month: DataFrame,
 ) -> DataFrame:
-    """Single-row snapshot for the executive dashboard."""
+    """Single-row snapshot for the executive dashboard.
+    
+    Refactored to be pure PySpark (no .collect() or .limit()) so it can
+    be safely evaluated in Delta Live Tables during Graph Initialization.
+    """
     recognised = orders_revenue.filter(F.col("is_revenue_recognised") == 1)
 
-    anchor_row = recognised.agg(
+    # 1. Grab the max date into a 1-row DataFrame and broadcast it. 
+    # Using a dummy key (_dummy) allows us to safely append this max date to every row.
+    anchor_df = recognised.agg(
         F.max("order_purchase_date").alias("anchor_date")
-    ).collect()
-    anchor_date = anchor_row[0]["anchor_date"] if anchor_row else None
+    ).withColumn("_dummy", F.lit(1))
 
-    totals = recognised.agg(
+    df_with_anchor = recognised.withColumn("_dummy", F.lit(1)).join(
+        F.broadcast(anchor_df), on="_dummy", how="inner"
+    )
+
+    # 2. Tag rows that belong to the L12M and Prior 12M windows
+    df_summary_stats = df_with_anchor.withColumn(
+        "is_l12m", F.col("order_purchase_date") > F.date_sub(F.col("anchor_date"), 365)
+    ).withColumn(
+        "is_prior12m", (F.col("order_purchase_date") <= F.date_sub(F.col("anchor_date"), 365)) &
+                       (F.col("order_purchase_date") > F.date_sub(F.col("anchor_date"), 730))
+    )
+
+    # 3. Aggregate globally (creates our single-row base output)
+    totals = df_summary_stats.agg(
         F.countDistinct("order_id").alias("total_orders"),
         F.sum("revenue_total").alias("total_revenue"),
+        F.coalesce(F.sum(F.when(F.col("is_l12m"), F.col("revenue_total"))), F.lit(0.0)).alias("last_12m_revenue"),
+        F.coalesce(F.sum(F.when(F.col("is_prior12m"), F.col("revenue_total"))), F.lit(0.0)).alias("prior_12m_revenue")
     ).withColumn(
         "aov",
-        F.when(F.col("total_orders") > 0, F.col("total_revenue") / F.col("total_orders")),
-    )
-
-    if anchor_date is None:
-        last_12m_revenue = 0.0
-        prior_12m_revenue = 0.0
-    else:
-        # Cast the Python date to a Spark DateType column explicitly to
-        # keep the comparison well-defined across Spark versions.
-        anchor_col = F.to_date(F.lit(anchor_date.isoformat()))
-        last_12m_revenue = (
-            recognised.filter(
-                F.col("order_purchase_date") > F.date_sub(anchor_col, 365)
-            )
-            .agg(F.sum("revenue_total"))
-            .collect()[0][0]
-            or 0.0
+        F.when(F.col("total_orders") > 0, F.col("total_revenue") / F.col("total_orders"))
+    ).withColumn(
+        "yoy_growth_pct",
+        F.when(
+            F.col("prior_12m_revenue") > 0,
+            (F.col("last_12m_revenue") - F.col("prior_12m_revenue")) / F.col("prior_12m_revenue") * 100.0
         )
-        prior_12m_revenue = (
-            recognised.filter(
-                (F.col("order_purchase_date") <= F.date_sub(anchor_col, 365))
-                & (F.col("order_purchase_date") > F.date_sub(anchor_col, 730))
-            )
-            .agg(F.sum("revenue_total"))
-            .collect()[0][0]
-            or 0.0
+    ).withColumn("_dummy", F.lit(1))
+
+    # 4. Helper function to find the top item dynamically without .collect()
+    def get_top_item(df: DataFrame, group_col: str, value_col: str, alias_name: str) -> DataFrame:
+        return (
+            df.groupBy(group_col)
+            .agg(F.sum(value_col).alias("_rev"))
+            .withColumn("_rank", F.row_number().over(Window.orderBy(F.desc("_rev"))))
+            .filter(F.col("_rank") == 1)
+            .select(F.col(group_col).alias(alias_name))
+            .withColumn("_dummy", F.lit(1)) # Add dummy key so we can left-join it back to the summary row
         )
 
-    yoy_pct = (
-        (last_12m_revenue - prior_12m_revenue) / prior_12m_revenue * 100.0
-        if prior_12m_revenue
-        else None
+    top_category = get_top_item(
+        revenue_by_category_month, "product_category_en", "total_revenue", "top_category"
+    )
+    top_state = get_top_item(
+        revenue_by_state_month, "customer_state", "total_revenue", "top_customer_state"
+    )
+    top_payment = get_top_item(
+        revenue_by_payment_type_month, "primary_payment_type", "total_revenue", "top_payment_type"
     )
 
-    top_category = (
-        revenue_by_category_month.groupBy("product_category_en")
-        .agg(F.sum("total_revenue").alias("_rev"))
-        .orderBy(F.desc("_rev"))
-        .limit(1)
-        .collect()
-    )
-    top_state = (
-        revenue_by_state_month.groupBy("customer_state")
-        .agg(F.sum("total_revenue").alias("_rev"))
-        .orderBy(F.desc("_rev"))
-        .limit(1)
-        .collect()
-    )
-    top_payment = (
-        revenue_by_payment_type_month.groupBy("primary_payment_type")
-        .agg(F.sum("total_revenue").alias("_rev"))
-        .orderBy(F.desc("_rev"))
-        .limit(1)
-        .collect()
-    )
-
+    # 5. Stitch everything together using left joins to ensure empty source tables don't crash the pipeline
     return (
-        totals.withColumn("last_12m_revenue", F.lit(float(last_12m_revenue)))
-        .withColumn("prior_12m_revenue", F.lit(float(prior_12m_revenue)))
-        .withColumn("yoy_growth_pct", F.lit(yoy_pct))
-        .withColumn(
-            "top_category",
-            F.lit(top_category[0]["product_category_en"] if top_category else None),
-        )
-        .withColumn(
-            "top_customer_state",
-            F.lit(top_state[0]["customer_state"] if top_state else None),
-        )
-        .withColumn(
-            "top_payment_type",
-            F.lit(top_payment[0]["primary_payment_type"] if top_payment else None),
-        )
+        totals
+        .join(top_category, on="_dummy", how="left")
+        .join(top_state, on="_dummy", how="left")
+        .join(top_payment, on="_dummy", how="left")
+        .drop("_dummy")
         .withColumn("kpi_generated_ts", F.current_timestamp())
     )
