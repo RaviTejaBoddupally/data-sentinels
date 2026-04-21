@@ -23,14 +23,12 @@ def customer_segmenation():
     "customer_persona",
     
     # 1. THE HIGH TIER (VIPs & Big Spenders)
-    # Based on your rules, ANY customer with High Value is a High tier customer.
     when(
         lower(col("value_segment")) == "high", 
         "VIP"
     )
     
     # 2. THE MEDIUM TIER (Core Customers)
-    # Captures Med/Med (your rule), plus we'll assume High Vol/Med Val and High Vol/Low Val belong here
     .when(
         (lower(col("volume_segment")) == "medium") & (lower(col("value_segment")) == "medium") |
         ((lower(col("volume_segment")) == "high") & (lower(col("value_segment")) != "high")), 
@@ -38,8 +36,6 @@ def customer_segmenation():
     )
     
     # 3. THE LOW TIER (Casual Buyers)
-    # The .otherwise() acts as our catch-all. 
-    # It perfectly handles Low/Low, Low/Med, and Med/Low.
     .otherwise("Casual Buyer")
     )
     
