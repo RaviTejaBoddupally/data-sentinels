@@ -135,7 +135,8 @@ Expected: **17 passed**.
 
 ## Exploration notebooks
 
-* `Exploration/revenue_exploration.ipynb` - UC1 strategy notes, silver/gold validation SQL, business-question answers, dashboard guidance.
+* `Exploration/revenue_exploration.ipynb` - UC1 end-to-end: bronze / silver validation SQL, five business-question answers over the Gold marts, four inline Matplotlib charts, and a runnable data-quality gate with eight invariants over Silver + Gold.
+* `Exploration/unit_tests.ipynb` - Runs the `pytest` suite from `Olist_DE_Practise_Jobs/tests/` on the cluster's SparkSession; prints a per-test PASS / FAIL summary for the pure PySpark helpers in `utilities/revenue_logic.py`.
 * `Exploration/JD-Exploration-2.ipynb` - UC3 strategy + validation.
 * `Exploration/RaviTeja-Exploration.ipynb` - Personal catalog and manual bronze loads used during development.
 
