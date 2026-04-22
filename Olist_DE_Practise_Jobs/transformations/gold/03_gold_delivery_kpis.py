@@ -18,23 +18,23 @@ SILVER_DELIVERY_ORDER_TABLE = "data_sentinals.silver.delivery_order_silver"
 SILVER_DELIVERY_ORDER_ITEM_TABLE = "data_sentinals.silver.delivery_order_item_silver"
 
 
-# -------------------------------------------------------------------
-# GOLD 1: STATE-MONTH DELIVERY PERFORMANCE
-# Grain: month x customer_state
-# -------------------------------------------------------------------
+# Monthly delivery KPI summary by customer state
 @dlt.table(
     name="gold_delivery_state_month",
     comment="Monthly delivery KPI summary by customer state"
 )
 def gold_delivery_state_month():
 
+    # Read order-level delivery Silver table
     delivery = spark.read.table(SILVER_DELIVERY_ORDER_TABLE)
 
+    # Keep only rows with usable delay and state values
     base = delivery.filter(
         F.col("delivery_delta_days").isNotNull() &
         F.col("customer_state").isNotNull()
     )
 
+    # Aggregate KPIs by month and customer state
     agg_df = (
         base.groupBy("order_purchase_month", "customer_state")
         .agg(
@@ -51,6 +51,7 @@ def gold_delivery_state_month():
         )
     )
 
+    # Rank the worst-performing customer states within each month
     return agg_df.withColumn(
         "state_delay_rank_in_month",
         F.dense_rank().over(
@@ -60,23 +61,23 @@ def gold_delivery_state_month():
     )
 
 
-# -------------------------------------------------------------------
-# GOLD 2: SELLER-STATE-MONTH DELIVERY PERFORMANCE
-# Grain: month x seller_state
-# -------------------------------------------------------------------
+# Monthly delivery KPI summary by seller state
 @dlt.table(
     name="gold_delivery_seller_state_month",
     comment="Monthly delivery KPI summary by seller state"
 )
 def gold_delivery_seller_state_month():
 
+    # Read seller-attributed delivery Silver table
     delivery = spark.read.table(SILVER_DELIVERY_ORDER_ITEM_TABLE)
 
+    # Keep only rows with usable delay and seller state
     base = delivery.filter(
         F.col("delivery_delta_days").isNotNull() &
         F.col("seller_state").isNotNull()
     )
 
+    # Aggregate KPIs by month and seller state
     agg_df = (
         base.groupBy("order_purchase_month", "seller_state")
         .agg(
@@ -91,6 +92,7 @@ def gold_delivery_seller_state_month():
         )
     )
 
+    # Rank worst seller states in each month
     return agg_df.withColumn(
         "seller_state_delay_rank_in_month",
         F.dense_rank().over(
@@ -100,24 +102,24 @@ def gold_delivery_seller_state_month():
     )
 
 
-# -------------------------------------------------------------------
-# GOLD 3: SELLER-TO-CUSTOMER CORRIDOR PERFORMANCE
-# Grain: month x seller_state x customer_state
-# -------------------------------------------------------------------
+# Monthly delivery KPI summary by seller-state to customer-state corridor
 @dlt.table(
     name="gold_delivery_corridor_month",
     comment="Monthly delivery KPI summary by seller-state to customer-state corridor"
 )
 def gold_delivery_corridor_month():
 
+    # Read seller-attributed delivery Silver table
     delivery = spark.read.table(SILVER_DELIVERY_ORDER_ITEM_TABLE)
 
+    # Keep only rows with usable delay and both route states present
     base = delivery.filter(
         F.col("delivery_delta_days").isNotNull() &
         F.col("seller_state").isNotNull() &
         F.col("customer_state").isNotNull()
     )
 
+    # Aggregate KPIs by month, seller state, and customer state
     agg_df = (
         base.groupBy("order_purchase_month", "seller_state", "customer_state")
         .agg(
@@ -132,6 +134,7 @@ def gold_delivery_corridor_month():
         )
     )
 
+    # Rank worst corridors in each month
     return agg_df.withColumn(
         "corridor_delay_rank_in_month",
         F.dense_rank().over(
@@ -141,23 +144,23 @@ def gold_delivery_corridor_month():
     )
 
 
-# -------------------------------------------------------------------
-# GOLD 4: DELAY HOTSPOTS
-# Grain: customer_state snapshot
-# -------------------------------------------------------------------
+# Overall delivery hotspot summary by customer state
 @dlt.table(
     name="gold_delivery_hotspots",
     comment="Delay hotspot summary by customer state across all delivered orders"
 )
 def gold_delivery_hotspots():
 
+    # Read order-level delivery Silver table
     delivery = spark.read.table(SILVER_DELIVERY_ORDER_TABLE)
 
+    # Keep only rows with usable delay and customer state
     base = delivery.filter(
         F.col("delivery_delta_days").isNotNull() &
         F.col("customer_state").isNotNull()
     )
 
+    # Aggregate all-time customer-state KPIs
     agg_df = (
         base.groupBy("customer_state")
         .agg(
@@ -169,26 +172,27 @@ def gold_delivery_hotspots():
         )
     )
 
+    # Rank states by worst average delay
     return agg_df.withColumn(
         "hotspot_rank",
         F.dense_rank().over(Window.orderBy(F.desc("avg_delivery_delta_days")))
     )
 
 
-# -------------------------------------------------------------------
-# GOLD 5: EXECUTIVE SUMMARY
-# Grain: one row
-# -------------------------------------------------------------------
+# Executive summary KPI table
 @dlt.table(
     name="gold_delivery_exec_summary",
     comment="Executive summary of delivery performance KPIs"
 )
 def gold_delivery_exec_summary():
 
+    # Read order-level delivery Silver table
     delivery = spark.read.table(SILVER_DELIVERY_ORDER_TABLE)
 
+    # Keep only rows with valid delivery delta
     base = delivery.filter(F.col("delivery_delta_days").isNotNull())
 
+    # Compute one-row overall KPI summary
     return (
         base.agg(
             F.countDistinct("order_id").alias("total_delivered_orders"),

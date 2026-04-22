@@ -15,13 +15,8 @@ BRONZE_CUSTOMERS_TABLE = "data_sentinals.bronze.raw_customers"
 BRONZE_SELLERS_TABLE = "data_sentinals.bronze.raw_olist_sellers"
 
 
-# -------------------------------------------------------------------
-# 1) GEO ZIP PREFIX REFERENCE
-# Purpose:
-# - Standardize geolocation data
-# - Collapse duplicate zip-prefix rows
-# - Prepare a safe lookup table for customer/seller enrichment
-# -------------------------------------------------------------------
+# Build a standardized geolocation lookup by zip prefix and state
+# This avoids duplicate joins from the raw geolocation table.
 @dlt.table(
     name="geo_zip_prefix_silver",
     comment="Standardized geolocation lookup"
@@ -30,8 +25,10 @@ BRONZE_SELLERS_TABLE = "data_sentinals.bronze.raw_olist_sellers"
 @dlt.expect("valid_state", "length(geo_state) = 2")
 def geo_zip_prefix_silver():
 
-    geo = dlt.read(BRONZE_GEO_TABLE)
+    # Read raw geolocation table from Bronze
+    geo = spark.read.table(BRONZE_GEO_TABLE)
 
+    # Standardize zip, city, state, and coordinate fields
     geo_std = (
         geo.select(
             F.col("geolocation_zip_code_prefix").cast("int").alias("zip_code_prefix"),
@@ -41,9 +38,8 @@ def geo_zip_prefix_silver():
             F.col("geolocation_lng").cast("double").alias("lng")
         )
     )
- # Olist geolocation has many rows per zip prefix.
-    # Build one representative record using averages for lat/lng
-    # and a representative city/state.
+
+    # Aggregate to one representative row per zip prefix + state
     return (
         geo_std.groupBy("zip_code_prefix", "geo_state")
         .agg(
@@ -51,15 +47,10 @@ def geo_zip_prefix_silver():
             F.avg("lng").alias("avg_lng"),
             F.first("geo_city", ignorenulls=True).alias("geo_city")
         )
-    )  
+    )
 
 
-# -------------------------------------------------------------------
-# 2) CUSTOMER GEO DIMENSION
-# Purpose:
-# - Standardize customer geography
-# - Enrich with representative lat/lng from zip prefix
-# -------------------------------------------------------------------
+# Build customer geography dimension enriched with coordinates
 @dlt.table(
     name="customer_geo_silver",
     comment="Customer dimension with geo enrichment"
@@ -67,9 +58,11 @@ def geo_zip_prefix_silver():
 @dlt.expect_or_drop("customer_id_not_null", "customer_id IS NOT NULL")
 def customer_geo_silver():
 
-    customers = dlt.read(BRONZE_CUSTOMERS_TABLE)
+    # Read Bronze customers and the Silver geo lookup
+    customers = spark.read.table(BRONZE_CUSTOMERS_TABLE)
     geo = dlt.read("geo_zip_prefix_silver")
 
+    # Standardize customer geography fields
     customers_std = (
         customers.select(
             "customer_id",
@@ -80,6 +73,7 @@ def customer_geo_silver():
         )
     )
 
+    # Enrich customers with representative latitude and longitude
     return (
         customers_std.alias("c")
         .join(
@@ -95,12 +89,8 @@ def customer_geo_silver():
         )
     )
 
-# -------------------------------------------------------------------
-# 3) SELLER GEO DIMENSION
-# Purpose:
-# - Standardize seller geography
-# - Enrich with representative lat/lng from zip prefix
-# -------------------------------------------------------------------
+
+# Build seller geography dimension enriched with coordinates
 @dlt.table(
     name="seller_geo_silver",
     comment="Seller dimension with geo enrichment"
@@ -108,9 +98,11 @@ def customer_geo_silver():
 @dlt.expect_or_drop("seller_id_not_null", "seller_id IS NOT NULL")
 def seller_geo_silver():
 
-    sellers = dlt.read(BRONZE_SELLERS_TABLE)
+    # Read Bronze sellers and the Silver geo lookup
+    sellers = spark.read.table(BRONZE_SELLERS_TABLE)
     geo = dlt.read("geo_zip_prefix_silver")
 
+    # Standardize seller geography fields
     sellers_std = (
         sellers.select(
             "seller_id",
@@ -120,6 +112,7 @@ def seller_geo_silver():
         )
     )
 
+    # Enrich sellers with representative latitude and longitude
     return (
         sellers_std.alias("s")
         .join(

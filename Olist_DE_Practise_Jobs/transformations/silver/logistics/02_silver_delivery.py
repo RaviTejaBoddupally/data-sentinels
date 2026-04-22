@@ -18,15 +18,7 @@ CUSTOMER_GEO_TABLE = "customer_geo_silver"
 SELLER_GEO_TABLE = "seller_geo_silver"
 
 
-# -------------------------------------------------------------------
-# 1) DELIVERY ORDER SILVER
-# Grain: one row per order
-# Purpose:
-# - Clean timestamp fields
-# - Handle null/invalid delivery scenarios
-# - Compute delivery SLA variance
-# - Enrich with customer geography
-# -------------------------------------------------------------------
+# Build order-level delivery fact table
 @dlt.table(
     name="delivery_order_silver",
     comment="Order-level delivery performance base for logistics and SLA analytics"
@@ -41,9 +33,11 @@ SELLER_GEO_TABLE = "seller_geo_silver"
 """)
 def delivery_order_silver():
 
-    orders = dlt.read(BRONZE_ORDERS_TABLE)
+    # Read Bronze orders and Silver customer geography
+    orders = spark.read.table(BRONZE_ORDERS_TABLE)
     customers = dlt.read(CUSTOMER_GEO_TABLE)
 
+    # Standardize order timestamps and status values
     orders_std = (
         orders.select(
             F.col("order_id").cast("string").alias("order_id"),
@@ -57,6 +51,7 @@ def delivery_order_silver():
         )
     )
 
+    # Join customer region details
     joined = (
         orders_std.alias("o")
         .join(
@@ -82,6 +77,7 @@ def delivery_order_silver():
         )
     )
 
+    # Compute delivery KPIs and business flags
     return (
         joined
         .withColumn(
@@ -162,13 +158,7 @@ def delivery_order_silver():
     )
 
 
-# -------------------------------------------------------------------
-# 2) ORDER-SELLER ROLLUP SILVER
-# Grain: one row per order + seller
-# Purpose:
-# - Avoid duplicate order rows caused by multi-item orders
-# - Support seller-state and corridor analytics
-# -------------------------------------------------------------------
+# Build order + seller rollup table from item-level Bronze data
 @dlt.table(
     name="order_seller_rollup_silver",
     comment="Order-to-seller rollup with item and revenue metrics for seller attribution"
@@ -177,9 +167,11 @@ def delivery_order_silver():
 @dlt.expect_or_drop("seller_id_not_null", "seller_id IS NOT NULL")
 def order_seller_rollup_silver():
 
+    # Read Bronze order items and Silver seller geography
     items = spark.read.table(BRONZE_ORDER_ITEMS_TABLE)
     sellers = dlt.read(SELLER_GEO_TABLE)
 
+    # Standardize item-level order data
     items_std = (
         items.select(
             F.col("order_id").cast("string").alias("order_id"),
@@ -192,6 +184,7 @@ def order_seller_rollup_silver():
         )
     )
 
+    # Aggregate item rows to one row per order + seller
     seller_rollup = (
         items_std.groupBy("order_id", "seller_id")
         .agg(
@@ -203,6 +196,7 @@ def order_seller_rollup_silver():
         )
     )
 
+    # Enrich seller rollup with seller region information
     return (
         seller_rollup.alias("r")
         .join(
@@ -227,13 +221,7 @@ def order_seller_rollup_silver():
     )
 
 
-# -------------------------------------------------------------------
-# 3) DELIVERY ORDER ITEM SILVER
-# Grain: one row per order + seller
-# Purpose:
-# - Join delivery outcome with seller attribution
-# - Enable regional bottlenecks and corridor analysis
-# -------------------------------------------------------------------
+# Build final order + seller delivery analysis table
 @dlt.table(
     name="delivery_order_item_silver",
     comment="Order-seller delivery base for corridor and seller-region logistics analysis"
@@ -242,9 +230,11 @@ def order_seller_rollup_silver():
 @dlt.expect("seller_id_not_null", "seller_id IS NOT NULL")
 def delivery_order_item_silver():
 
+    # Read prior Silver tables from same pipeline
     delivery_orders = dlt.read("delivery_order_silver")
     seller_rollup = dlt.read("order_seller_rollup_silver")
 
+    # Join order-level delivery results with seller-level attribution
     return (
         seller_rollup.alias("s")
         .join(
