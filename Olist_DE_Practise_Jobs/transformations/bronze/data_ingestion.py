@@ -22,7 +22,8 @@ spark.sql("USE SCHEMA bronze")
 # user_name = dbutils.notebook.entry_point.getDbutils().notebook().getContext().userName().get()
 # user_name = "Olist_DE_Practise_Jobs/utilities/ingestion_config.json"
 # logger.info("Current user value is ."+user_name)
-# CONFIG_PATH = f"/Workspace/Users/{user_name}/data-sentinels/Olist_DE_Practise_Jobs/utilities/ingestion_config.json"
+# CONFIG_PATH = f"/Workspace/Users/jagadeeswararao.d@thoughtworks.com/data-sentinels/Olist_DE_Practise_Jobs/utilities/ingestion_config.json"
+
 
 current_script_path = os.getcwd()
 repo_root = current_script_path.split("Olist_DE_Practise_Jobs")[0] + "Olist_DE_Practise_Jobs"
@@ -49,7 +50,10 @@ for file_name, config in files_to_load.items():
         file_format = current_config.get("file_format")
         has_header = current_config.get("header")
         file_delimiter = current_config.get("delimiter")
-        
+        multiline = current_config.get("multiLine")
+        quote = current_config.get("quote")
+        escape = current_config.get("escape")
+
         @dlt.table(
             name=table_name,
             comment=f"Raw batch ingestion for {current_file}",
@@ -65,6 +69,9 @@ for file_name, config in files_to_load.items():
                 .format(file_format)
                 .option("header", has_header)
                 .option("delimiter", file_delimiter)
+                .option("multiLine", multiline)
+                .option("quote", quote)
+                .option("escape", escape)
                 .schema(table_schema) 
                 .load(full_path)
                 .withColumn("ingestion_ts", current_timestamp()) # <--- Adds the timestamp column

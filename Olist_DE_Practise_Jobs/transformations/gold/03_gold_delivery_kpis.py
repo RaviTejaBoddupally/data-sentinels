@@ -23,7 +23,7 @@ def gold_delivery_state_month():
 
     # Read Silver order-level delivery dataset
     # (Created in 02_silver_delivery.py)
-    delivery = dlt.read("delivery_order_silver")
+    delivery = dlt.read("data_sentinals.silver.delivery_order_silver")
 
     # Filter only valid rows:
     # - delivery_delta_days must exist (only delivered orders with timestamps)
@@ -105,7 +105,7 @@ def gold_delivery_state_month():
 def gold_delivery_seller_state_month():
 
     # Read Silver order + seller enriched dataset
-    delivery = dlt.read("delivery_order_item_silver")
+    delivery = dlt.read("data_sentinals.silver.delivery_order_item_silver")
 
     # Filter valid rows
     base = delivery.filter(
@@ -175,7 +175,7 @@ def gold_delivery_seller_state_month():
 def gold_delivery_corridor_month():
 
     # Read Silver enriched dataset
-    delivery = dlt.read("delivery_order_item_silver")
+    delivery = dlt.read("data_sentinals.silver.delivery_order_item_silver")
 
     # Filter valid rows
     base = delivery.filter(
@@ -245,7 +245,7 @@ def gold_delivery_corridor_month():
 )
 def gold_delivery_hotspots():
 
-    delivery = dlt.read("delivery_order_silver")
+    delivery = dlt.read("data_sentinals.silver.delivery_order_silver")
 
     base = delivery.filter(
         F.col("delivery_delta_days").isNotNull() &
@@ -288,7 +288,7 @@ def gold_delivery_hotspots():
 )
 def gold_delivery_exec_summary():
 
-    delivery = dlt.read("delivery_order_silver")
+    delivery = dlt.read("data_sentinals.silver.delivery_order_silver")
 
     base = delivery.filter(F.col("delivery_delta_days").isNotNull())
 
