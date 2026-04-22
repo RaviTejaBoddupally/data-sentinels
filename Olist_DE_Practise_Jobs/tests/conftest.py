@@ -23,6 +23,14 @@ if UTILITIES_DIR not in sys.path:
     sys.path.insert(0, UTILITIES_DIR)
 
 
+# Databricks sets DATABRICKS_RUNTIME_VERSION in every cluster environment.
+# When present, we must NOT call session.stop() at teardown — stopping the
+# cluster-wide SparkSession causes the notebook cell to hang for minutes
+# waiting for Spark to shut down. Locally this variable is absent and we
+# stop the session normally.
+_ON_DATABRICKS = "DATABRICKS_RUNTIME_VERSION" in os.environ
+
+
 @pytest.fixture(scope="session")
 def spark():
     session = (
@@ -35,4 +43,5 @@ def spark():
     )
     session.sparkContext.setLogLevel("ERROR")
     yield session
-    session.stop()
+    if not _ON_DATABRICKS:
+        session.stop()
